@@ -1,11 +1,26 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowUpRight, Code, Mail, Phone, X } from 'lucide-react';
-import { portfolioData } from './data';
+import { usePortfolio } from './hooks/usePortfolio';
+
+// We initialize a blank skeleton so the .map() functions don't crash
+const initialSkeleton = {
+    contact: [],
+    experience: [],
+    projects: [],
+    achievements: [],
+    education: [],
+    skills: {},
+    additionalDetails: [
+        { type: 'leetcode', value: 'Username (0 Rating)' },
+        { type: 'languages', value: '...' }
+    ]
+};
 
 export default function App() {
+    const { portfolioData, loading } = usePortfolio();
     const [activePage, setActivePage] = useState('home');
     const [isProjectModalOpen, setProjectModalOpen] = useState(false);
     const [selectedProject, setSelectedProject] = useState(null);
@@ -15,18 +30,26 @@ export default function App() {
         setProjectModalOpen(true);
     };
 
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-[#030712] flex items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-blue-500"></div>
+            </div>
+        );
+    }
+
     const pages = {
-        home: <HomePage setActivePage={setActivePage} onProjectClick={handleProjectClick} />,
-        experience: <ExperiencePage />,
-        projects: <ProjectsPage onProjectClick={handleProjectClick} />,
-        achievements: <AchievementsPage />,
-        details: <DetailsPage />,
+        home: <HomePage setActivePage={setActivePage} onProjectClick={handleProjectClick} portfolioData={portfolioData} />,
+        experience: <ExperiencePage portfolioData={portfolioData} />,
+        projects: <ProjectsPage onProjectClick={handleProjectClick} portfolioData={portfolioData} />,
+        achievements: <AchievementsPage portfolioData={portfolioData} />,
+        details: <DetailsPage portfolioData={portfolioData} />,
     };
 
     return (
         <div className="min-h-screen w-full bg-[#030712] text-gray-300 selection:bg-blue-500/30">
             <div className="container mx-auto max-w-7xl p-6 lg:p-12 relative z-10">
-                <Header />
+                <Header contactData={portfolioData.contact} />
                 <Navigation activePage={activePage} setActivePage={setActivePage} />
                 
                 <AnimatePresence mode="wait">
@@ -43,9 +66,15 @@ export default function App() {
             </div>
             
             <AnimatePresence>
-                {isProjectModalOpen && <ProjectModal project={selectedProject} onClose={() => setProjectModalOpen(false)} />}
+                {isProjectModalOpen && (
+                    <ProjectModal 
+                        project={selectedProject} 
+                        onClose={() => setProjectModalOpen(false)} 
+                    />
+                )}
             </AnimatePresence>
 
+            {/* Background Blobs */}
             <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full h-full pointer-events-none -z-0 overflow-hidden">
                 <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-900/10 blur-[120px] rounded-full"></div>
                 <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-900/10 blur-[120px] rounded-full"></div>
@@ -54,7 +83,7 @@ export default function App() {
     );
 }
 
-const Header = () => (
+const Header = ({ contactData }) => (
     <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
         <div>
             <motion.h1 
@@ -65,26 +94,27 @@ const Header = () => (
                 Bondada Navaneeth Krishna
             </motion.h1>
             <div className="mt-6 flex flex-wrap gap-x-6 gap-y-3 text-gray-400">
-                {portfolioData.contact.map((item) => (
+                {contactData.map((item, index) => (
                     <a
-                        key={item.type}
-                        href={item.type === 'email' ? `mailto:${item.value}` : item.type === 'phone' ? `tel:${item.value}` : `https://leetcode.com/${item.value}`}
-                        target={item.type === 'leetcode' ? "_blank" : "_self"}
+                        key={index}
+                        href={item.type === 'email' ? `mailto:${item.email}` : '#'}
                         className="flex items-center gap-2 hover:text-blue-400 transition-colors group"
                     >
                         <div className="p-2 rounded-full bg-gray-900 group-hover:bg-blue-900/30 transition-colors">
-                            {item.type === 'phone' && <Phone size={14} />}
+                            {/* --- ICON LOGIC --- */}
                             {item.type === 'email' && <Mail size={14} />}
+                            {item.type === 'phone' && <Phone size={14} />}
                             {item.type === 'leetcode' && <Code size={14} />}
                         </div>
-                        <span className="text-sm md:text-base font-medium">{item.value}</span>
+                        <span className="text-sm md:text-base font-medium">
+                            {item.email || item.value}
+                        </span>
                     </a>
                 ))}
             </div>
         </div>
     </header>
 );
-
 const Navigation = ({ activePage, setActivePage }) => {
     const navItems = ['Home', 'Experience', 'Projects', 'Achievements', 'Details'];
     return (
@@ -110,7 +140,7 @@ const Navigation = ({ activePage, setActivePage }) => {
     );
 };
 
-const HomePage = ({ setActivePage, onProjectClick }) => (
+const HomePage = ({ setActivePage, onProjectClick, portfolioData }) => (
     <div className="space-y-16">
         <section>
             <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-blue-500 mb-4">Mission</h2>
@@ -128,7 +158,7 @@ const HomePage = ({ setActivePage, onProjectClick }) => (
                             TIMELINE <ArrowUpRight size={14} />
                         </button>
                     </div>
-                    <ExperienceCard experience={portfolioData.experience[0]} />
+                    {portfolioData.experience[0] && <ExperienceCard experience={portfolioData.experience[0]} />}
                 </section>
 
                 <section>
@@ -147,13 +177,13 @@ const HomePage = ({ setActivePage, onProjectClick }) => (
             </div>
             
             <aside className="lg:col-span-1">
-                <SkillsSection />
+                <SkillsSection skills={portfolioData.skills} />
             </aside>
         </div>
     </div>
 );
 
-const ExperiencePage = () => (
+const ExperiencePage = ({ portfolioData }) => (
     <div className="max-w-4xl">
         <h2 className="text-3xl font-bold mb-12 text-white tracking-tighter">Professional Journey</h2>
         <div className="space-y-8">
@@ -164,7 +194,7 @@ const ExperiencePage = () => (
     </div>
 );
 
-const ProjectsPage = ({ onProjectClick }) => (
+const ProjectsPage = ({ onProjectClick, portfolioData }) => (
     <div>
         <h2 className="text-3xl font-bold mb-12 text-white tracking-tighter">Selected Projects</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -175,7 +205,7 @@ const ProjectsPage = ({ onProjectClick }) => (
     </div>
 );
 
-const AchievementsPage = () => (
+const AchievementsPage = ({ portfolioData }) => (
     <div className="max-w-3xl mx-auto">
         <h2 className="text-3xl font-bold mb-12 text-white tracking-tighter text-center">Milestones</h2>
         <div className="relative border-l border-gray-800 ml-4 md:ml-0">
@@ -192,7 +222,7 @@ const AchievementsPage = () => (
     </div>
 );
 
-const DetailsPage = () => (
+const DetailsPage = ({ portfolioData }) => (
      <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
         <section>
             <h2 className="text-3xl font-bold mb-12 text-white tracking-tighter">Education</h2>
@@ -204,7 +234,7 @@ const DetailsPage = () => (
         <section className="space-y-16">
             <div>
                 <h2 className="text-3xl font-bold mb-12 text-white tracking-tighter">Competitive Programming</h2>
-                <LeetCodeCard />
+                <LeetCodeCard details={portfolioData.additionalDetails[0]} />
             </div>
             <div>
                 <h2 className="text-3xl font-bold mb-8 text-white tracking-tighter">Languages</h2>
@@ -230,7 +260,7 @@ const ExperienceCard = ({ experience }) => (
             <span className="text-xs font-bold text-gray-500 bg-gray-800 px-3 py-1 rounded-full">{experience.period}</span>
         </div>
         <ul className="space-y-4 text-gray-400 leading-relaxed">
-            {experience.description.map((d, i) => (
+            {experience.description?.map((d, i) => (
                 <li key={i} className="flex gap-3">
                     <span className="text-blue-500 mt-1.5 flex-shrink-0">•</span>
                     <span dangerouslySetInnerHTML={{ __html: d.replace(/\*\*(.*?)\*\*/g, '<strong class="text-gray-200 font-semibold">$1</strong>') }} />
@@ -245,7 +275,7 @@ const ProjectCard = ({ project, onProjectClick }) => (
         <h3 className="text-xl font-bold text-white mb-1 group-hover:text-blue-400 transition-colors">{project.title}</h3>
         <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-4">{project.category}</p>
         <div className="flex flex-wrap gap-2 mb-6">
-            {project.tags.map(tag => (
+            {project.tags?.map(tag => (
                 <span key={tag} className="bg-gray-800/80 text-gray-400 text-[10px] font-bold px-2 py-0.5 rounded border border-gray-700/50 uppercase">
                     {tag}
                 </span>
@@ -266,7 +296,7 @@ const ProjectCard = ({ project, onProjectClick }) => (
     </div>
 );
 
-const SkillsSection = () => {
+const SkillsSection = ({ skills }) => {
     const proficiencyMap = {
         'Professional': 'text-purple-400 border-purple-900/50 bg-purple-950/20',
         'Advanced': 'text-blue-400 border-blue-900/50 bg-blue-950/20',
@@ -276,11 +306,11 @@ const SkillsSection = () => {
     return (
         <div className="space-y-8 sticky top-24">
             <h2 className="text-xl font-bold text-white uppercase tracking-tighter border-b border-gray-800 pb-4">Core Stack</h2>
-            {Object.entries(portfolioData.skills).map(([category, skills]) => (
+            {Object.entries(skills).map(([category, skillList]) => (
                 <div key={category}>
                     <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] mb-4">{category}</h3>
                     <div className="flex flex-wrap gap-2">
-                        {skills.map(skill => (
+                        {skillList.map(skill => (
                             <span 
                                 key={skill.name} 
                                 className={`text-[11px] font-bold px-3 py-1 rounded-md border transition-all hover:scale-105 ${proficiencyMap[skill.proficiency] || 'text-gray-400 border-gray-800'}`}
@@ -304,15 +334,17 @@ const EducationCard = ({ education }) => (
                 <p className="text-xs font-bold text-gray-600 uppercase tracking-widest">{education.period}</p>
             </div>
             <div className="text-right">
-                <span className="text-2xl font-black text-blue-500">{education.details.split(': ')[1]}</span>
+                <span className="text-2xl font-black text-blue-500">{education.details?.split(': ')[1] || '0.0'}</span>
                 <p className="text-[10px] font-bold text-gray-600 uppercase">CGPA</p>
             </div>
         </div>
     </div>
 );
 
-const LeetCodeCard = () => {
-    const [username, rating] = portfolioData.additionalDetails[0].value.match(/(\w+)\s\((\d+)\sRating\)/).slice(1);
+const LeetCodeCard = ({ details }) => {
+    const match = details.value.match(/(\w+)\s\((\d+)\sRating\)/);
+    const username = match ? match[1] : '...';
+    const rating = match ? match[2] : '0';
     return (
         <div className="p-8 rounded-2xl bg-gray-900/60 border border-gray-800 flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="flex items-center gap-6">
@@ -363,7 +395,7 @@ const ProjectModal = ({ project, onClose }) => {
                     </button>
                 </div>
                 <div className="overflow-y-auto pr-4 space-y-8 custom-scrollbar">
-                    {Object.entries(project.details).map(([key, value]) => (
+                    {project.details && Object.entries(project.details).map(([key, value]) => (
                         <div key={key}>
                             <h4 className="text-xs font-black text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
                                 <span className="w-1 h-3 bg-blue-500 rounded-full"></span> {key}
